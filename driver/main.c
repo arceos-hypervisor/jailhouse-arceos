@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
+#include <linux/cpu.h>
 #include <asm/barrier.h>
 #include <asm/smp.h>
 #include <asm/cacheflush.h>
@@ -64,7 +65,8 @@ static void *hypervisor_mem;
 
 static struct device *jailhouse_dev;
 static unsigned long hv_core_and_percpu_size;
-static int enter_hv_cpus;
+static unsigned int max_cpus, rt_cpus, enter_hv_cpus;
+static cpumask_t vm_cpus_mask;
 static atomic_t call_done;
 static int error_code;
 static struct resource *hypervisor_mem_res;
@@ -348,7 +350,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	unsigned long remap_addr = 0;
 	unsigned long config_size;
 	const char *fw_name;
-	long max_cpus;
+	unsigned int cpu;
 	int err;
 
 	int num_iomem, num_mem_regions;
@@ -425,6 +427,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	}
 
 	max_cpus = num_possible_cpus();
+	rt_cpus = 1;
 	hv_core_and_percpu_size =
 		header->core_size + max_cpus * header->percpu_size;
 	config_size = sizeof(*config) + num_mem_regions * sizeof(*mem_regions);
@@ -466,6 +469,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 
 	header = (struct jailhouse_header *)hypervisor_mem;
 	header->max_cpus = max_cpus;
+	header->rt_cpus = rt_cpus;
 
 	/* Copy system configuration to its target address in hypervisor memory
 	 * region. */
@@ -486,7 +490,16 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 
 	preempt_disable();
 
-	header->online_cpus = num_online_cpus();
+	cpumask_clear(&vm_cpus_mask);
+	for (cpu = 0; cpu < max_cpus; cpu++) {
+		if (cpu >= max_cpus - rt_cpus) {
+			cpu_down(cpu);
+		} else {
+			cpumask_set_cpu(cpu, &vm_cpus_mask);
+		}
+	}
+	pr_info("Before entering hypervisor: max_cpus=%d, rt_cpus=%d, num_online_cpus=%d\n",
+		max_cpus, rt_cpus, num_online_cpus());
 
 	/*
 	 * Cannot use wait=true here because all CPUs have to enter the
@@ -494,7 +507,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	 * CPU back.
 	 */
 	atomic_set(&call_done, 0);
-	on_each_cpu(enter_hypervisor, header, 0);
+	on_each_cpu_mask(&vm_cpus_mask, enter_hypervisor, header, 0);
 	while (atomic_read(&call_done) != num_online_cpus())
 		cpu_relax();
 
@@ -502,7 +515,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 
 	if (error_code) {
 		err = error_code;
-		goto error_unmap;
+		goto err_add_rt_cpus;
 	}
 
 	kvfree(mem_regions);
@@ -517,7 +530,13 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 
 	return 0;
 
-error_unmap:
+err_add_rt_cpus:
+	for (cpu = 0; cpu < max_cpus; cpu++) {
+		if (cpu >= max_cpus - rt_cpus) {
+			cpu_up(cpu);
+		}
+	}
+
 	jailhouse_firmware_free();
 
 error_release_memreg:
@@ -577,6 +596,7 @@ static void leave_hypervisor(void *info)
 static int jailhouse_cmd_disable(void)
 {
 	int err;
+	unsigned int cpu;
 
 	if (mutex_lock_interruptible(&jailhouse_lock) != 0)
 		return -EINTR;
@@ -604,9 +624,17 @@ static int jailhouse_cmd_disable(void)
 
 	atomic_set(&call_done, 0);
 	/* See jailhouse_cmd_enable while wait=true does not work. */
-	on_each_cpu(leave_hypervisor, NULL, 0);
+	on_each_cpu_mask(&vm_cpus_mask, leave_hypervisor, NULL, 0);
 	while (atomic_read(&call_done) != num_online_cpus())
 		cpu_relax();
+
+	for (cpu = 0; cpu < max_cpus; cpu++) {
+		if (cpu >= max_cpus - rt_cpus) {
+			cpu_up(cpu);
+		}
+	}
+	pr_info("Disable hypervisor OK: max_cpus=%d, rt_cpus=%d, num_online_cpus=%d\n",
+		max_cpus, rt_cpus, num_online_cpus());
 
 	preempt_enable();
 
