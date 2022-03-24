@@ -28,9 +28,19 @@
 
 #define JAILHOUSE_DEVICE	"/dev/jailhouse"
 
-static struct mem_region hv_region = {
-	.start = 0x3a000000,
-	.size = 256 << 20, // 256M
+#define HV_PHYS_START		0x3a000000
+#define HV_MEM_SIZE  		(128 << 20) // 128M
+#define RT_MEM_SIZE  		(128 << 20) // 128M
+
+static const struct jailhouse_enable_args enable_args = {
+	.hv_region = {
+		.start = HV_PHYS_START,
+		.size = HV_MEM_SIZE,
+	},
+	.rt_region = {
+		.start = HV_PHYS_START + HV_MEM_SIZE,
+		.size = RT_MEM_SIZE,
+	}
 };
 
 static void __attribute__((noreturn)) help(char *prog, int exit_status)
@@ -65,7 +75,7 @@ int main(int argc, char *argv[])
 
 	if (strcmp(argv[1], "enable") == 0) {
 		fd = open_dev();
-		err = ioctl(fd, JAILHOUSE_ENABLE, &hv_region);
+		err = ioctl(fd, JAILHOUSE_ENABLE, &enable_args);
 		if (err)
 			perror("JAILHOUSE_ENABLE");
 		close(fd);

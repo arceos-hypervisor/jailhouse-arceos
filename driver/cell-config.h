@@ -57,6 +57,7 @@ struct jailhouse_system {
 
 	/** Jailhouse's location in memory */
 	struct jailhouse_memory hypervisor_memory;
+	struct jailhouse_memory rtos_memory;
 	struct jailhouse_cell_desc root_cell;
 } __attribute__((packed));
 

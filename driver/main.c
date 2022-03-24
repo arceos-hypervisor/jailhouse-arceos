@@ -70,6 +70,7 @@ static cpumask_t vm_cpus_mask;
 static atomic_t call_done;
 static int error_code;
 static struct resource *hypervisor_mem_res;
+static struct mem_region hv_region, rt_region;
 
 static typeof(ioremap_page_range) *ioremap_page_range_sym;
 
@@ -122,6 +123,17 @@ void *jailhouse_ioremap(phys_addr_t phys, unsigned long virt,
 	return vma->addr;
 }
 
+int get_rt_memory_region(struct mem_region *region) {
+	if (!rt_region.start || !rt_region.size) {
+		return -EBUSY;
+	} else {
+		*region = rt_region;
+		return 0;
+	}
+}
+
+EXPORT_SYMBOL(get_rt_memory_region);
+
 /*
  * Called for each cpu by the JAILHOUSE_ENABLE ioctl.
  * It jumps to the entry point set in the header, reports the result and
@@ -173,8 +185,7 @@ static inline const char * jailhouse_get_fw_name(void)
 static void jailhouse_firmware_free(void)
 {
 	if (hypervisor_mem_res) {
-		release_mem_region(hypervisor_mem_res->start,
-				   resource_size(hypervisor_mem_res));
+		release_mem_region(hypervisor_mem_res->start, resource_size(hypervisor_mem_res));
 		hypervisor_mem_res = NULL;
 	}
 	vunmap(hypervisor_mem);
@@ -320,6 +331,7 @@ static void dump_mem_regions(struct jailhouse_memory *regions, int n)
 
 static void init_system_config(struct jailhouse_system *config,
 			       struct mem_region *hv_region,
+			       struct mem_region *rt_region,
 			       int num_mem_regions,
 			       struct jailhouse_memory *mem_regions)
 {
@@ -330,6 +342,8 @@ static void init_system_config(struct jailhouse_system *config,
 	config->revision = JAILHOUSE_CONFIG_REVISION;
 	config->hypervisor_memory.phys_start = hv_region->start;
 	config->hypervisor_memory.size = hv_region->size;
+	config->rtos_memory.phys_start = rt_region->start;
+	config->rtos_memory.size = rt_region->size;
 	memcpy(config->root_cell.signature, JAILHOUSE_CELL_DESC_SIGNATURE,
 	       sizeof(config->root_cell.signature));
 	config->root_cell.revision = JAILHOUSE_CONFIG_REVISION;
@@ -342,7 +356,7 @@ static void init_system_config(struct jailhouse_system *config,
 }
 
 /* See Documentation/bootstrap-interface.txt */
-static int jailhouse_cmd_enable(struct mem_region __user *arg)
+static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 {
 	const struct firmware *hypervisor;
 	struct jailhouse_system *config;
@@ -354,7 +368,6 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	int err;
 
 	int num_iomem, num_mem_regions;
-	struct mem_region hv_region;
 	struct jailhouse_memory *mem_regions;
 
 	fw_name = jailhouse_get_fw_name();
@@ -363,7 +376,11 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 		return -ENODEV;
 	}
 
-	if (copy_from_user(&hv_region, arg, sizeof(hv_region))) {
+	if (copy_from_user(&hv_region, &arg->hv_region, sizeof(struct mem_region))) {
+		pr_err("jailhouse_cmd_enable: invalid arg: 0x%p\n", arg);
+		return -EFAULT;
+	}
+	if (copy_from_user(&rt_region, &arg->rt_region, sizeof(struct mem_region))) {
 		pr_err("jailhouse_cmd_enable: invalid arg: 0x%p\n", arg);
 		return -EFAULT;
 	}
@@ -416,6 +433,9 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	pr_info("hypervisor memory region: [0x%llx-0x%llx], 0x%llx\n",
 		hv_region.start, hv_region.start + hv_region.size - 1,
 		hv_region.size);
+	pr_info("RT memory region: [0x%llx-0x%llx], 0x%llx\n",
+		rt_region.start, rt_region.start + rt_region.size - 1,
+		rt_region.size);
 
 	header = (struct jailhouse_header *)hypervisor->data;
 
@@ -455,8 +475,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	hypervisor_mem =
 		jailhouse_ioremap(hv_region.start, remap_addr, hv_region.size);
 	if (!hypervisor_mem) {
-		pr_err("jailhouse: Unable to map RAM reserved for hypervisor "
-		       "at %08lx\n",
+		pr_err("jailhouse: Unable to map RAM reserved for hypervisor at %08lx\n",
 		       (unsigned long)hv_region.start);
 		goto error_release_memreg;
 	}
@@ -464,8 +483,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	/* Copy hypervisor's binary image at beginning of the memory region
 	 * and clear the rest to zero. */
 	memcpy(hypervisor_mem, hypervisor->data, hypervisor->size);
-	memset(hypervisor_mem + hypervisor->size, 0,
-	       hv_region.size - hypervisor->size);
+	memset(hypervisor_mem + hypervisor->size, 0, hv_region.size - hypervisor->size);
 
 	header = (struct jailhouse_header *)hypervisor_mem;
 	header->max_cpus = max_cpus;
@@ -475,7 +493,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	 * region. */
 	config = (struct jailhouse_system *)(hypervisor_mem +
 					     hv_core_and_percpu_size);
-	init_system_config(config, &hv_region, num_mem_regions, mem_regions);
+	init_system_config(config, &hv_region, &rt_region, num_mem_regions, mem_regions);
 
 	/*
 	 * ARMv8 requires to clean D-cache and invalidate I-cache for memory
@@ -484,7 +502,7 @@ static int jailhouse_cmd_enable(struct mem_region __user *arg)
 	 * extraneous (but harmless) flush.
 	 */
 	flush_icache_range((unsigned long)hypervisor_mem,
-			   (unsigned long)(hypervisor_mem + header->core_size));
+		(unsigned long)(hypervisor_mem + header->core_size));
 
 	error_code = 0;
 
@@ -543,8 +561,7 @@ error_release_memreg:
 	/* jailhouse_firmware_free() could have been called already and
 	 * has released hypervisor_mem_res. */
 	if (hypervisor_mem_res)
-		release_mem_region(hypervisor_mem_res->start,
-				   resource_size(hypervisor_mem_res));
+		release_mem_region(hypervisor_mem_res->start, resource_size(hypervisor_mem_res));
 	hypervisor_mem_res = NULL;
 
 error_free_mem_regions:
@@ -662,7 +679,7 @@ static long jailhouse_ioctl(struct file *file, unsigned int ioctl,
 
 	switch (ioctl) {
 	case JAILHOUSE_ENABLE:
-		err = jailhouse_cmd_enable((struct mem_region __user *)arg);
+		err = jailhouse_cmd_enable((struct jailhouse_enable_args __user *)arg);
 		break;
 	case JAILHOUSE_DISABLE:
 		err = jailhouse_cmd_disable();
