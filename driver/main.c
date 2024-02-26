@@ -46,8 +46,8 @@
 #endif
 
 #ifdef CONFIG_X86
-#define JAILHOUSE_AMD_FW_NAME	"rvm-amd.bin"
-#define JAILHOUSE_INTEL_FW_NAME	"rvm-intel.bin"
+#define JAILHOUSE_AMD_FW_NAME	"arceos-amd.bin"
+#define JAILHOUSE_INTEL_FW_NAME	"arceos-intel.bin"
 #endif
 
 MODULE_DESCRIPTION("Management driver for Jailhouse partitioning hypervisor");
@@ -380,6 +380,8 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 		pr_err("jailhouse_cmd_enable: invalid arg: 0x%p\n", arg);
 		return -EFAULT;
 	}
+
+	// Todo: remove this.
 	if (copy_from_user(&rt_region, &arg->rt_region, sizeof(struct mem_region))) {
 		pr_err("jailhouse_cmd_enable: invalid arg: 0x%p\n", arg);
 		return -EFAULT;
@@ -462,7 +464,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	jailhouse_firmware_free();
 
 	hypervisor_mem_res = request_mem_region(hv_region.start, hv_region.size,
-						"RVM hypervisor");
+						"ARCEOS hypervisor");
 	if (!hypervisor_mem_res) {
 		pr_err("jailhouse: request_mem_region failed for hypervisor "
 		       "memory.\n");

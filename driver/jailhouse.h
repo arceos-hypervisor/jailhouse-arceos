@@ -18,7 +18,7 @@ struct jailhouse_enable_args {
 #define JAILHOUSE_DISABLE		_IO(0, 1)
 
 #define JAILHOUSE_BASE	0xffffff0000000000UL
-#define JAILHOUSE_SIGNATURE	"RVMIMAGE"
+#define JAILHOUSE_SIGNATURE	"ARCEIMAG"
 
 /**
  * Hypervisor description.
@@ -26,7 +26,7 @@ struct jailhouse_enable_args {
  * the driver (which also initializes some fields).
  */
 struct jailhouse_header {
-	/** Signature "RVMIMAGE" used for basic validity check of the
+	/** Signature "ARCEIMAG" used for basic validity check of the
 	 * hypervisor image.
 	 * @note Filled at build time. */
 	char signature[8];
