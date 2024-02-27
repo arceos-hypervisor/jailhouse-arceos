@@ -18,7 +18,13 @@ KDIR ?= /lib/modules/`uname -r`/build
 
 kbuild = -C $(KDIR) M=$$PWD $@
 
+PORT ?= 2333
+
 modules clean:
 	$(Q)$(MAKE) $(kbuild)
 
-.PHONY: modules clean
+.PHONY: ssh
+ssh:
+	ssh -p $(PORT) ubuntu@localhost
+
+.PHONY: modules clean ssh

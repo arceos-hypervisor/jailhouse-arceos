@@ -443,9 +443,10 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	header = (struct jailhouse_header *)hypervisor->data;
 
 	err = -EINVAL;
+
 	if (memcmp(header->signature, JAILHOUSE_SIGNATURE,
 		   sizeof(header->signature)) != 0) {
-		pr_err("SIGNATURE CHECK FAIL\n");
+		pr_err("SIGNATURE CHECK FAIL, get header %s\n", header->signature);
 		goto error_release_fw;
 	}
 
