@@ -103,6 +103,9 @@ void *jailhouse_ioremap(phys_addr_t phys, unsigned long virt,
 	struct vm_struct *vma;
 
 	size = PAGE_ALIGN(size);
+
+	pr_info("jailhouse_ioremap phys 0x%llx virt 0x%llx size 0x%llx\n", phys, virt, size);
+
 	if (virt)
 		vma = __get_vm_area(size, VM_IOREMAP, virt,
 				    virt + size + PAGE_SIZE);
