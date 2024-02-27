@@ -411,6 +411,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 #endif
 
 	/* Load hypervisor image */
+	pr_err("jailhouse: Load hypervisor image %s\n", fw_name);
 	err = request_firmware(&hypervisor, fw_name, jailhouse_dev);
 	if (err) {
 		pr_err("jailhouse: Missing hypervisor image %s\n", fw_name);

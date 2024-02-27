@@ -19,3 +19,5 @@ driver/jailhouse.ko
 tools/jailhouse
 *.s
 .vscode
+*.img
+scripts/host/user-data
