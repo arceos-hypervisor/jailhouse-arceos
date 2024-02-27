@@ -17,8 +17,8 @@ struct jailhouse_enable_args {
 #define JAILHOUSE_ENABLE		_IOW(0, 0, struct jailhouse_enable_args)
 #define JAILHOUSE_DISABLE		_IO(0, 1)
 
-// #define JAILHOUSE_BASE	0xffffff0000000000UL
-#define JAILHOUSE_BASE  0xffffff8000200000UL
+#define JAILHOUSE_BASE	0xffffff0000000000UL
+// #define JAILHOUSE_BASE  0xffffff8000200000UL
 #define JAILHOUSE_SIGNATURE	"ARCEOSIM"
 
 /**
