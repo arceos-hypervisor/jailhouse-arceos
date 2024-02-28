@@ -104,8 +104,6 @@ void *jailhouse_ioremap(phys_addr_t phys, unsigned long virt,
 
 	size = PAGE_ALIGN(size);
 
-	pr_info("jailhouse_ioremap phys 0x%llx virt 0x%lx size 0x%lx\n", phys, virt, size);
-
 	if (virt)
 		vma = __get_vm_area(size, VM_IOREMAP, virt,
 				    virt + size + PAGE_SIZE);
@@ -414,7 +412,6 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 #endif
 
 	/* Load hypervisor image */
-	pr_err("jailhouse: Load hypervisor image %s\n", fw_name);
 	err = request_firmware(&hypervisor, fw_name, jailhouse_dev);
 	if (err) {
 		pr_err("jailhouse: Missing hypervisor image %s\n", fw_name);

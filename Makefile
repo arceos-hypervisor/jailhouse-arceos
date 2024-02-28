@@ -18,7 +18,7 @@ KDIR ?= /lib/modules/`uname -r`/build
 
 kbuild = -C $(KDIR) M=$$PWD $@
 
-PORT ?= 2333
+PORT ?= 6657
 
 modules clean:
 	$(Q)$(MAKE) $(kbuild)

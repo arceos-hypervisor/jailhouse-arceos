@@ -1,5 +1,5 @@
 QEMU ?= qemu-system-x86_64
-PORT ?= 2333
+PORT ?= 6657
 
 qemu_image := ubuntu-20.04-server-cloudimg-amd64.img
 qemu_args := \
