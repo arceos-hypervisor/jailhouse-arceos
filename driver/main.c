@@ -539,9 +539,11 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	while (atomic_read(&call_done) != num_online_cpus())
 		cpu_relax();
 
+	pr_info("Core [%d to %d] entered hypervisor.\n", 0, num_online_cpus() - 1);
+
 	on_each_cpu_mask(&arceos_cpus_mask, enter_arceos, header, 0);
-	while (atomic_read(&call_arceos_done) != rt_cpus)
-		cpu_relax();
+	// while (atomic_read(&call_arceos_done) != rt_cpus)
+	// 	cpu_relax();
 
 	preempt_enable();
 
