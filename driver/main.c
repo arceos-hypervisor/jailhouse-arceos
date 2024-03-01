@@ -67,7 +67,9 @@ static struct device *jailhouse_dev;
 static unsigned long hv_core_and_percpu_size;
 static unsigned int max_cpus, rt_cpus, enter_hv_cpus;
 static cpumask_t vm_cpus_mask;
+static cpumask_t arceos_cpus_mask;
 static atomic_t call_done;
+static atomic_t call_arceos_done;
 static int error_code;
 static struct resource *hypervisor_mem_res;
 static struct mem_region hv_region, rt_region;
@@ -140,7 +142,7 @@ EXPORT_SYMBOL(get_rt_memory_region);
  * It jumps to the entry point set in the header, reports the result and
  * signals completion to the main thread that invoked it.
  */
-static void enter_hypervisor(void *info)
+static void enter_arceos(void *info)
 {
 	struct jailhouse_header *header = info;
 	unsigned int cpu = smp_processor_id();
@@ -513,8 +515,10 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	preempt_disable();
 
 	cpumask_clear(&vm_cpus_mask);
+	cpumask_clear(&arceos_cpus_mask);
 	for (cpu = 0; cpu < max_cpus; cpu++) {
 		if (cpu >= max_cpus - rt_cpus) {
+			cpumask_set_cpu(cpu, &arceos_cpus_mask);
 			cpu_down(cpu);
 		} else {
 			cpumask_set_cpu(cpu, &vm_cpus_mask);
@@ -529,8 +533,14 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	 * CPU back.
 	 */
 	atomic_set(&call_done, 0);
-	on_each_cpu_mask(&vm_cpus_mask, enter_hypervisor, header, 0);
+	atomic_set(&call_arceos_done, 0);
+	
+	on_each_cpu_mask(&vm_cpus_mask, enter_arceos, header, 0);
 	while (atomic_read(&call_done) != num_online_cpus())
+		cpu_relax();
+
+	on_each_cpu_mask(&arceos_cpus_mask, enter_arceos, header, 0);
+	while (atomic_read(&call_arceos_done) != rt_cpus)
 		cpu_relax();
 
 	preempt_enable();
