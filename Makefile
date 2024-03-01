@@ -27,4 +27,8 @@ modules clean:
 ssh:
 	ssh -p $(PORT) ubuntu@localhost
 
+.PHONY: scp
+scp:
+	scp -P $(PORT) -r ../jailhouse-arceos ubuntu@localhost:/home/ubuntu
+
 .PHONY: modules clean ssh

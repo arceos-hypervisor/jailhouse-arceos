@@ -45,11 +45,9 @@ struct jailhouse_header {
 	/** Configured maximum logical CPU ID + 1.
 	 * @note Filled by Linux loader driver before entry. */
 	unsigned int max_cpus;
-	/** Number of real-time CPUs paritioned, which will be shutdown before
-	 * entry and restarted in hypervisor. The others are VM CPUs, which will
-	 * call the entry function and run the guest.
+	/** Number of online CPUs that will call the entry function.
 	 * @note Filled by Linux loader driver before entry. */
-	unsigned int rt_cpus;
+	unsigned int online_cpus;
 };
 
 #endif /* !_JAILHOUSE_DRIVER_H */

@@ -365,7 +365,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	unsigned long remap_addr = 0;
 	unsigned long config_size;
 	const char *fw_name;
-	unsigned int cpu;
+	// unsigned int cpu;
 	int err;
 
 	int num_iomem, num_mem_regions;
@@ -491,7 +491,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 
 	header = (struct jailhouse_header *)hypervisor_mem;
 	header->max_cpus = max_cpus;
-	header->rt_cpus = rt_cpus;
+	// header->online_cpus = rt_cpus;
 
 	/* Copy system configuration to its target address in hypervisor memory
 	 * region. */
@@ -512,18 +512,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 
 	preempt_disable();
 
-	cpumask_clear(&vm_cpus_mask);
-
-	for (cpu = 0; cpu < max_cpus; cpu++) {
-		if (cpu >= max_cpus - rt_cpus) {
-			cpumask_set_cpu(cpu, &arceos_cpus_mask);
-			cpu_down(cpu);
-		} else {
-			cpumask_set_cpu(cpu, &vm_cpus_mask);
-		}
-	}
-	pr_info("Before entering hypervisor: max_cpus=%d, rt_cpus=%d, num_online_cpus=%d\n",
-		max_cpus, rt_cpus, num_online_cpus());
+	header->online_cpus = num_online_cpus();
 
 	/*
 	 * Cannot use wait=true here because all CPUs have to enter the
@@ -533,16 +522,11 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	atomic_set(&call_done, 0);
 	
 	// on_each_cpu_mask(&vm_cpus_mask, enter_arceos, header, 0);
-	on_each_cpu_mask(&vm_cpus_mask, enter_arceos, header, 0);
-	while (atomic_read(&call_done) != max_cpus)
+	on_each_cpu(enter_arceos, header, 0);
+	while (atomic_read(&call_done) != num_online_cpus())
 		cpu_relax();
 
 	preempt_enable();
-
-	if (error_code) {
-		err = error_code;
-		goto err_add_rt_cpus;
-	}
 
 	kvfree(mem_regions);
 	release_firmware(hypervisor);
@@ -556,14 +540,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 
 	return 0;
 
-err_add_rt_cpus:
-	for (cpu = 0; cpu < max_cpus; cpu++) {
-		if (cpu >= max_cpus - rt_cpus) {
-			cpu_up(cpu);
-		}
-	}
-
-	jailhouse_firmware_free();
+	// jailhouse_firmware_free();
 
 error_release_memreg:
 	/* jailhouse_firmware_free() could have been called already and
