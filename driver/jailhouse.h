@@ -8,7 +8,7 @@
 #define JAILHOUSE_DISABLE		_IO(0, 1)
 
 #define JAILHOUSE_BASE	0xffffff0000000000UL
-#define JAILHOUSE_SIGNATURE	"RVMIMAGE"
+#define JAILHOUSE_SIGNATURE	"ARCEOSIM"
 
 struct mem_region {
 	unsigned long long start;

@@ -45,8 +45,8 @@
 #endif
 
 #ifdef CONFIG_X86
-#define JAILHOUSE_AMD_FW_NAME	"rvm-amd.bin"
-#define JAILHOUSE_INTEL_FW_NAME	"rvm-intel.bin"
+#define JAILHOUSE_AMD_FW_NAME	"arceos-amd.bin"
+#define JAILHOUSE_INTEL_FW_NAME	"arceos-intel.bin"
 #endif
 
 MODULE_DESCRIPTION("Management driver for Jailhouse partitioning hypervisor");
@@ -140,9 +140,11 @@ static void enter_hypervisor(void *info)
 	else
 		err = -EINVAL;
 
-	if (err)
+	if (err) {
+		pr_info("Core [%d] return from arceos, code %d.\n", cpu, err);
 		error_code = err;
-
+	}
+		
 #if defined(CONFIG_X86) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
 	/* on Intel, VMXE is now on - update the shadow */
 	if (boot_cpu_has(X86_FEATURE_VMX) && !err) {
