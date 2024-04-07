@@ -514,8 +514,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 
 	cpumask_clear(&vm_cpus_mask);
 	for (cpu = 0; cpu < max_cpus; cpu++) {
-		// if (cpu >= max_cpus - rt_cpus) {
-		if (cpu >= 1) {
+		if (cpu >= max_cpus - rt_cpus) {
 			cpu_down(cpu);
 		} else {
 			cpumask_set_cpu(cpu, &vm_cpus_mask);

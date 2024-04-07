@@ -28,7 +28,7 @@
 
 #define JAILHOUSE_DEVICE	"/dev/jailhouse"
 
-#define HV_PHYS_START		0x3a000000
+#define HV_PHYS_START		0x40000000
 #define HV_MEM_SIZE  		(128 << 20) // 128M
 #define RT_MEM_SIZE  		(128 << 20) // 128M
 
