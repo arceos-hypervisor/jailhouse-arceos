@@ -45,7 +45,7 @@
 #endif
 
 #include "cell.h"
-#include "axtask.h"
+#include "axvm.h"
 #include "jailhouse.h"
 #include "main.h"
 #include "pci.h"
@@ -453,7 +453,7 @@ static int jailhouse_cmd_enable(struct jailhouse_system __user *arg)
 	 * redone since the root-cell config might have changed. */
 	jailhouse_firmware_free();
 
-	pr_err("this is hv_mem phs_start:%llx virt: %llx size: %llx\n", hv_mem->phys_start, hv_mem->virt_start, hv_mem->size);
+	pr_err("HV mem phs_start :0x%llx virt: :0x%llx size: 0x%llx\n", hv_mem->phys_start, hv_mem->virt_start, hv_mem->size);
 	hypervisor_mem_res = request_mem_region(hv_mem->phys_start,
 						hv_mem->size,
 						"Jailhouse hypervisor");
@@ -513,7 +513,7 @@ static int jailhouse_cmd_enable(struct jailhouse_system __user *arg)
 	 * region. */
 	config = (struct jailhouse_system *)
 		(hypervisor_mem + hv_core_and_percpu_size);
-	pr_err("config: 0x%p\n", (void*)config);
+	// pr_err("config: 0x%p\n", (void*)config);
 	if (copy_from_user(config, arg, config_size)) {
 		err = -EFAULT;
 		goto error_unmap;
@@ -753,9 +753,9 @@ static long jailhouse_ioctl(struct file *file, unsigned int ioctl,
 	case JAILHOUSE_CELL_DESTROY:
 		err = jailhouse_cmd_cell_destroy((const char __user *)arg);
 		break;
-	case JAILHOUSE_AXTASK_UP:
-		err = jailhouse_cmd_axtask_up(
-			(struct jailhouse_axtask_up __user *)arg);
+	case JAILHOUSE_AXVM_CREATE:
+		err = arceos_cmd_axvm_create(
+			(struct jailhouse_axvm_create __user *)arg);
 		break;
 	default:
 		err = -EINVAL;

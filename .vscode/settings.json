@@ -1,5 +1,15 @@
 {
     "files.associations": {
-        "axprocess.h": "c"
+        "axprocess.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "*.tcc": "c",
+        "axvm.h": "c",
+        "jailhouse.h": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "main.h": "c",
+        "cell.h": "c"
     }
 }

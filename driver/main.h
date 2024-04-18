@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 
 #include "cell.h"
-#include "axtask.h"
+#include "axvm.h"
 
 extern struct mutex jailhouse_lock;
 extern bool jailhouse_enabled;
