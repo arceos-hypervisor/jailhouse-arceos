@@ -530,16 +530,16 @@ static int axvm_create(int argc, char *argv[])
 	printf("axtask cpumask:%lld type:%d \n", axvm_cfg.cpu_mask, axvm_cfg.type);
 	
 	for(int i = 4; i < argc; ++i) {
-		axvm_cfg.addr[i-5] = (unsigned long)read_file(argv[i], &size);
-		axvm_cfg.size[i-5] = size;
-		printf(" addr%d:%llx, size%d: %lld ", i-5, axvm_cfg.addr[i-5], i-5, axvm_cfg.size[i-5]);
+		axvm_cfg.addr[i-4] = (unsigned long)read_file(argv[i], &size);
+		axvm_cfg.size[i-4] = size;
+		// printf(" addr%d:%llx, size%d: %lld ", i-4, axvm_cfg.addr[i-4], i-4, axvm_cfg.size[i-4]);
 	}
 	for(int i = argc - 4; i < JAILHOUSE_FILE_MAXNUM; ++i) {
 		axvm_cfg.addr[i] = 0;
 		axvm_cfg.size[i] = 0;
-		printf(" addr%d:%llx, size%d: %lld ", i, axvm_cfg.addr[i], i, axvm_cfg.size[i]);
+		// printf(" addr%d:%llx, size%d: %lld ", i, axvm_cfg.addr[i], i, axvm_cfg.size[i]);
 	}
-	printf("\n");
+	// printf("\n");
 	
 	
 	fd = open_dev();

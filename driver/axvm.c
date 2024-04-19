@@ -26,6 +26,8 @@ int arceos_axvm_load_image(struct jailhouse_preload_image *image)
 {
 	void *image_mem;
 	int err = 0;
+
+	return err;
 	image_mem = jailhouse_ioremap(image->target_address, 0,
 			PAGE_ALIGN(image->size));
 	if (!image_mem) {
@@ -34,7 +36,7 @@ int arceos_axvm_load_image(struct jailhouse_preload_image *image)
 		       (unsigned long long)(image->target_address));
 		return -EBUSY;
 	}
-	if (copy_from_user(image_mem,
+	if (copy_from_user(image_mem + image->padding,
 			   (void __user *)(unsigned long)image->source_address,
 			   image->size)) {
 		pr_err("jailhouse: Unable to copy image from user %08llx "
@@ -57,7 +59,7 @@ int arceos_axvm_load_image(struct jailhouse_preload_image *image)
 #endif
 
 	vunmap(image_mem);
-	
+
 	return err;
 }
 
@@ -74,7 +76,7 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
 	int vm_id = 0;
 
 	unsigned long arg_phys_addr;
-	struct arceos_axvm_create_arg arceos_hvc_axvm_create;
+	struct arceos_axvm_create_arg* arceos_hvc_axvm_create;
 	struct jailhouse_preload_image bios_image;
 	struct jailhouse_preload_image kernel_image;
 
@@ -98,50 +100,80 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
         }
     }
 
-	arceos_hvc_axvm_create.vm_id = 0;
-	arceos_hvc_axvm_create.type = vm_cfg.type;
-	arceos_hvc_axvm_create.bios_size = vm_cfg.size[0];
-	arceos_hvc_axvm_create.bios_load_physical_addr = 0;
-	arceos_hvc_axvm_create.kernel_size = vm_cfg.size[1];
-	arceos_hvc_axvm_create.kernel_load_physical_addr = 0;
+	arceos_hvc_axvm_create = kmalloc(sizeof(struct arceos_axvm_create_arg), GFP_USER | __GFP_NOWARN);
 
-	arg_phys_addr = __pa(&arceos_hvc_axvm_create);
-	pr_err("Virtual address: %p, Physical address: %lx\n", &arceos_hvc_axvm_create, arg_phys_addr);
+	arceos_hvc_axvm_create->vm_id = 0;
+	arceos_hvc_axvm_create->vm_type = vm_cfg.type;
+	arceos_hvc_axvm_create->cpu_mask = cpu_mask;
+
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->vm_entry_point = 0xdeadbeef;
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->ram_size =0;
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->ram_base_gpa =0xdeadbeef;
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->bios_load_gpa = 0xdeadbeef;
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->kernel_load_gpa = 0xdeadbeef;
+	// This field should be set by user, but now this is provided by hypervisor.
+	arceos_hvc_axvm_create->ramdisk_load_gpa = 0xdeadbeef;
+
+	// This field should be set by hypervisor.
+	arceos_hvc_axvm_create->bios_load_hpa = 0xdeadbeef;
+	// This field should be set by hypervisor.
+	arceos_hvc_axvm_create->kernel_load_hpa = 0xdeadbeef;
+	// This field should be set by hypervisor.
+	arceos_hvc_axvm_create->ramdisk_load_hpa = 0xdeadbeef;
+
+	arg_phys_addr = __pa(arceos_hvc_axvm_create);
+	pr_err("Virtual address: %p, Physical address: %lx\n", arceos_hvc_axvm_create, arg_phys_addr);
 	pr_err("[arceos_cmd_axvm_create] current cpu:%d cpu_mask:%d\n", cpu_id, cpu_mask);
-	pr_err("[arceos_cmd_axvm_create] BIOS_size: 0x%llx kerbel size 0x%llx\n", 
-		arceos_hvc_axvm_create.bios_size, 
-		arceos_hvc_axvm_create.kernel_size);
-    err = jailhouse_call_arg2(ARCEOS_HC_AXVM_CREATE_CFG, cpu_mask, arg_phys_addr);
+
+    err = jailhouse_call_arg1(ARCEOS_HC_AXVM_CREATE_CFG, arg_phys_addr);
 	if (err < 0) {
 		pr_err("[arceos_cmd_axvm_create] Failed in JAILHOUSE_AXVM_CREATE\n");
 		goto error_cpu_online;
 	}
 	
 	pr_err("[arceos_cmd_axvm_create] JAILHOUSE_AXVM_CREATE VM %d success\n", 
-		(int) arceos_hvc_axvm_create.vm_id);
-
-	vm_id = (int) arceos_hvc_axvm_create.vm_id;
+		(int) arceos_hvc_axvm_create->vm_id);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] vm_entry_point 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->vm_entry_point);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] ram_size 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_size);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] ram_base_gpa 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_base_gpa);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] bios_load_gpa 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->bios_load_gpa);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] kernel_load_gpa 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->kernel_load_gpa);
+	pr_err("[arceos_cmd_axvm_create] VM [%d] ramdisk_load_gpa 0x%llx\n", 
+		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ramdisk_load_gpa);
+	vm_id = (int) arceos_hvc_axvm_create->vm_id;
 
 	// Load image
-	pr_err("[arceos_cmd_axvm_create] bios_load_physical_addr: 0x%llx\n", 
-		arceos_hvc_axvm_create.bios_load_physical_addr);
 	bios_image.source_address = vm_cfg.addr[0];
 	bios_image.size = vm_cfg.size[0];
-	bios_image.target_address = arceos_hvc_axvm_create.bios_load_physical_addr;
+	bios_image.target_address = arceos_hvc_axvm_create->bios_load_hpa;
 	bios_image.padding = 0;
+
+	pr_err("[arceos_cmd_axvm_create] bios_load_hpa: 0x%llx\n", 
+		arceos_hvc_axvm_create->bios_load_hpa);
+
 	err = arceos_axvm_load_image(&bios_image);
 	if (err < 0) {
 		pr_err("[arceos_cmd_axvm_create] Failed in arceos_axvm_load_image bios_image\n");
 		goto error_cpu_online;
 	}
 
-	pr_err("[arceos_cmd_axvm_create] kernel_load_physical_addr: 0x%llx\n", 
-		arceos_hvc_axvm_create.kernel_load_physical_addr);
-
 	kernel_image.source_address = vm_cfg.addr[1];
 	kernel_image.size = vm_cfg.size[1];
-	kernel_image.target_address = arceos_hvc_axvm_create.kernel_load_physical_addr;
+	kernel_image.target_address = arceos_hvc_axvm_create->kernel_load_hpa;
 	kernel_image.padding = 0;
+
+	pr_err("[arceos_cmd_axvm_create] kernel_load_hpa: 0x%llx\n", 
+		arceos_hvc_axvm_create->kernel_load_hpa);
 
 	err = arceos_axvm_load_image(&kernel_image);
 		if (err < 0) {
@@ -154,6 +186,8 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
 
 	err = jailhouse_call_arg1(ARCEOS_HC_AXVM_BOOT, (unsigned long)vm_id);
 
+	kfree(arceos_hvc_axvm_create);
+
 	return err;
 
 error_cpu_online:
@@ -165,5 +199,6 @@ error_cpu_online:
 			cpumask_set_cpu(cpu, &root_cell->cpus_assigned);
 		}
 	}
+	kfree(arceos_hvc_axvm_create);
 	return err;
 }
