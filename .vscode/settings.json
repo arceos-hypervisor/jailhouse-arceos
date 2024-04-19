@@ -10,6 +10,10 @@
         "initializer_list": "c",
         "utility": "c",
         "main.h": "c",
-        "cell.h": "c"
+        "cell.h": "c",
+        "hypercall.h": "c",
+        "pci.h": "c",
+        "sysfs.h": "c",
+        "console.h": "c"
     }
 }

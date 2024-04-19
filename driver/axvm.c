@@ -27,35 +27,48 @@ int arceos_axvm_load_image(struct jailhouse_preload_image *image)
 	void *image_mem;
 	int err = 0;
 
-	return err;
-	image_mem = jailhouse_ioremap(image->target_address, 0,
-			PAGE_ALIGN(image->size));
+	__u64 page_offs, phys_start;
+
+	phys_start = image->target_address & PAGE_MASK;
+	page_offs = offset_in_page(image->target_address);
+	
+	pr_info("[%s]:\n", __func__);
+
+	image_mem = jailhouse_ioremap(phys_start, 0,
+			PAGE_ALIGN(image->size + page_offs));
+	
+	pr_info("phys_start 0x%llx remap to 0x%p\n", phys_start, image_mem);
+
 	if (!image_mem) {
 		pr_err("jailhouse: Unable to map cell RAM at %08llx "
 		       "for image loading\n",
 		       (unsigned long long)(image->target_address));
 		return -EBUSY;
 	}
-	if (copy_from_user(image_mem + image->padding,
+
+	pr_info("copy to 0x%p size 0x%llx, loading...\n", image_mem + page_offs, image->size);
+
+	if (copy_from_user(image_mem + page_offs,
 			   (void __user *)(unsigned long)image->source_address,
 			   image->size)) {
 		pr_err("jailhouse: Unable to copy image from user %08llx "
 		       "for image loading\n",
 		       (unsigned long long)(image->source_address));
-	}
 		err = -EFAULT;
+	}
+		
 	/*
 	 * ARMv7 and ARMv8 require to clean D-cache and invalidate I-cache for
 	 * memory containing new instructions. On x86 this is a NOP.
 	 */
-	flush_icache_range((unsigned long)(image_mem),
-			   (unsigned long)(image_mem) + image->size);
+	flush_icache_range((unsigned long)(image_mem + page_offs),
+			   (unsigned long)(image_mem + page_offs) + image->size);
 #ifdef CONFIG_ARM
 	/*
 	 * ARMv7 requires to flush the written code and data out of D-cache to
 	 * allow the guest starting off with caches disabled.
 	 */
-	__cpuc_flush_dcache_area(image_mem, image->size);
+	__cpuc_flush_dcache_area(image_mem + page_offs, image->size);
 #endif
 
 	vunmap(image_mem);
@@ -127,29 +140,29 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
 	arceos_hvc_axvm_create->ramdisk_load_hpa = 0xdeadbeef;
 
 	arg_phys_addr = __pa(arceos_hvc_axvm_create);
-	pr_err("Virtual address: %p, Physical address: %lx\n", arceos_hvc_axvm_create, arg_phys_addr);
-	pr_err("[arceos_cmd_axvm_create] current cpu:%d cpu_mask:%d\n", cpu_id, cpu_mask);
+
+	pr_info("[%s] current cpu:%d cpu_mask:%d\n", __func__, cpu_id, cpu_mask);
 
     err = jailhouse_call_arg1(ARCEOS_HC_AXVM_CREATE_CFG, arg_phys_addr);
 	if (err < 0) {
-		pr_err("[arceos_cmd_axvm_create] Failed in JAILHOUSE_AXVM_CREATE\n");
+		pr_err("[%s] Failed in JAILHOUSE_AXVM_CREATE\n", __func__);
 		goto error_cpu_online;
 	}
 	
-	pr_err("[arceos_cmd_axvm_create] JAILHOUSE_AXVM_CREATE VM %d success\n", 
-		(int) arceos_hvc_axvm_create->vm_id);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] vm_entry_point 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->vm_entry_point);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] ram_size 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_size);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] ram_base_gpa 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_base_gpa);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] bios_load_gpa 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->bios_load_gpa);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] kernel_load_gpa 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->kernel_load_gpa);
-	pr_err("[arceos_cmd_axvm_create] VM [%d] ramdisk_load_gpa 0x%llx\n", 
-		(int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ramdisk_load_gpa);
+	pr_info("[%s] JAILHOUSE_AXVM_CREATE VM %d success\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id);
+	pr_info("[%s] VM [%d] vm_entry_point 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->vm_entry_point);
+	pr_info("[%s] VM [%d] ram_size 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_size);
+	pr_info("[%s] VM [%d] ram_base_gpa 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ram_base_gpa);
+	pr_info("[%s] VM [%d] bios_load_gpa 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->bios_load_gpa);
+	pr_info("[%s] VM [%d] kernel_load_gpa 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->kernel_load_gpa);
+	pr_info("[%s] VM [%d] ramdisk_load_gpa 0x%llx\n", 
+		__func__, (int) arceos_hvc_axvm_create->vm_id, arceos_hvc_axvm_create->ramdisk_load_gpa);
 	vm_id = (int) arceos_hvc_axvm_create->vm_id;
 
 	// Load image
@@ -158,12 +171,11 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
 	bios_image.target_address = arceos_hvc_axvm_create->bios_load_hpa;
 	bios_image.padding = 0;
 
-	pr_err("[arceos_cmd_axvm_create] bios_load_hpa: 0x%llx\n", 
-		arceos_hvc_axvm_create->bios_load_hpa);
+	pr_info("[%s] bios_load_hpa: 0x%llx\n", __func__, arceos_hvc_axvm_create->bios_load_hpa);
 
 	err = arceos_axvm_load_image(&bios_image);
 	if (err < 0) {
-		pr_err("[arceos_cmd_axvm_create] Failed in arceos_axvm_load_image bios_image\n");
+		pr_err("[%s] Failed in arceos_axvm_load_image bios_image\n", __func__);
 		goto error_cpu_online;
 	}
 
@@ -172,17 +184,15 @@ int arceos_cmd_axvm_create(struct jailhouse_axvm_create __user *arg)
 	kernel_image.target_address = arceos_hvc_axvm_create->kernel_load_hpa;
 	kernel_image.padding = 0;
 
-	pr_err("[arceos_cmd_axvm_create] kernel_load_hpa: 0x%llx\n", 
-		arceos_hvc_axvm_create->kernel_load_hpa);
+	pr_info("[%s] kernel_load_hpa: 0x%llx\n", __func__, arceos_hvc_axvm_create->kernel_load_hpa);
 
 	err = arceos_axvm_load_image(&kernel_image);
 		if (err < 0) {
-		pr_err("[arceos_cmd_axvm_create] Failed in arceos_axvm_load_image kernel_image\n");
+		pr_err("[%s] Failed in arceos_axvm_load_image kernel_image\n", __func__);
 		goto error_cpu_online;
 	}
 
-	pr_err("[arceos_cmd_axvm_create] image load success, booting VM %d\n", 
-		vm_id);
+	pr_err("[%s] image load success, booting VM %d\n", __func__, vm_id);
 
 	err = jailhouse_call_arg1(ARCEOS_HC_AXVM_BOOT, (unsigned long)vm_id);
 
