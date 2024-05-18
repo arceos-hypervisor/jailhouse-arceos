@@ -118,9 +118,10 @@ def parse_iomem(pcidevices):
             add_rom_region = True
             append_r = False
         # filter out and save DMAR regions
+        # Todo: we just map 'dmar' for host Linux.
         if r.typestr.find('dmar') >= 0:
             dmar_regions.append(r)
-            append_r = False
+            # append_r = False
         if append_r:
             ret.append(r)
 
@@ -898,10 +899,12 @@ class IOMemRegionTree:
             # ):
             #     continue
 
+            # We do not blackedlisted these reserved regions.
+            # IOAPIC, HPet or regions reserved for Graphics may hide behind it.
             # generally blacklisted, unless we find an HPET behind it
-            if (s.lower() == 'reserved'):
-                regions.extend(IOMemRegionTree.find_hpet_regions(tree))
-                continue
+            # if (s.lower() == 'reserved'):
+            #     regions.extend(IOMemRegionTree.find_hpet_regions(tree))
+            #     continue
 
             # if the tree continues recurse further down ...
             if (len(tree.children) > 0):
