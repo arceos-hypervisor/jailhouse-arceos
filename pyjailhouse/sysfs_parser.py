@@ -749,7 +749,11 @@ class MemRegion:
             self.typestr == 'Kernel' or
             self.typestr == 'RAM buffer' or
             self.typestr == 'ACPI DMAR RMRR' or
-            self.typestr == 'ACPI IVRS'
+            self.typestr == 'ACPI IVRS' or
+            # Just mark Reserved memory as `JAILHOUSE_MEM_EXECUTE`
+            # Do not know somehow Linux will execute codes on Reserved Memory region,
+            # which will caused an unhandled EPT violation with `executed` flag.
+            self.typestr == 'Reserved'
         ):
             s = 'JAILHOUSE_MEM_READ | JAILHOUSE_MEM_WRITE |\n'
             s += p + '\t\tJAILHOUSE_MEM_EXECUTE | JAILHOUSE_MEM_DMA'

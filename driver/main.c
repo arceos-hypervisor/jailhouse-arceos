@@ -456,7 +456,7 @@ static int jailhouse_cmd_enable(struct jailhouse_system __user *arg)
 	pr_err("HV mem phs_start :0x%llx virt: :0x%llx size: 0x%llx\n", hv_mem->phys_start, hv_mem->virt_start, hv_mem->size);
 	hypervisor_mem_res = request_mem_region(hv_mem->phys_start,
 						hv_mem->size,
-						"Jailhouse hypervisor");
+						"ArceOS Hypervisor");
 	if (!hypervisor_mem_res) {
 		pr_err("jailhouse: request_mem_region failed for hypervisor "
 		       "memory.\n");
