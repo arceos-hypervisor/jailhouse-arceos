@@ -907,14 +907,14 @@ class IOMemRegionTree:
             # On the contrary, we map them for Linux for these reasons:
             # * IOAPIC, HPet or regions reserved for Graphics may hide behind it.
             # * Linux will operate it for unknown reason.
-            if (s.lower() == 'reserved'):
-                regions.append(r)
-                continue
+            # if (s.lower() == 'reserved'):
+            #     regions.append(r)
+            #     continue
 
             # if the tree continues recurse further down ...
-            if (len(tree.children) > 0):
-                regions.extend(IOMemRegionTree.parse_iomem_tree(tree))
-                continue
+            # if (len(tree.children) > 0):
+            #     regions.extend(IOMemRegionTree.parse_iomem_tree(tree))
+            #     continue
 
             # add all remaining leaves
             regions.append(r)
